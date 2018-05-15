@@ -38,71 +38,40 @@ trait ModelTrait
         return new Builder($query);
     }
 
-    /**
-     * Define a has-many-through relationship.
-     *
-     * @param string      $related
-     * @param string      $through
-     * @param string|null $firstKey
-     * @param string|null $secondKey
-     * @param string|null $localKey
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
-     */
-    public function hasManyThrough($related, $through, $firstKey = null, $secondKey = null, $localKey = null)
-    {
-        $through = new $through();
+    // IS NEEDED?? REMOVE?
+    // /**
+    //  * Instantiate a new HasManyThrough relationship.
+    //  *
+    //  * @param  \Illuminate\Database\Eloquent\Builder  $query
+    //  * @param  \Illuminate\Database\Eloquent\Model  $farParent
+    //  * @param  \Illuminate\Database\Eloquent\Model  $throughParent
+    //  * @param  string  $firstKey
+    //  * @param  string  $secondKey
+    //  * @param  string  $localKey
+    //  * @param  string  $secondLocalKey
+    //  * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    //  */
+    // protected function newHasManyThrough(Builder $query, Model $farParent, Model $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
+    // {
+    //     return new HasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+    // }
 
-        $firstKey = $firstKey ?: $this->getForeignKey();
-
-        $secondKey = $secondKey ?: $through->getForeignKey();
-
-        $localKey = $localKey ?: $this->getKeyName();
-
-        return new HasManyThrough((new $related())->newQuery(), $this, $through, $firstKey, $secondKey, $localKey);
-    }
-
-    /**
-     * Define a many-to-many relationship.
-     *
-     * @param string $related
-     * @param string $table
-     * @param string $foreignKey
-     * @param string $otherKey
-     * @param string $relation
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-     */
-    public function belongsToMany($related, $table = null, $foreignKey = null, $otherKey = null, $relation = null)
-    {
-        // If no relationship name was passed, we will pull backtraces to get the
-        // name of the calling function. We will use that function name as the
-        // title of this relation since that is a great convention to apply.
-        if (is_null($relation)) {
-            $relation = $this->getBelongsToManyCaller();
-        }
-
-        // First, we'll need to determine the foreign key and "other key" for the
-        // relationship. Once we have determined the keys we'll make the query
-        // instances as well as the relationship instances we need for this.
-        $foreignKey = $foreignKey ?: $this->getForeignKey();
-
-        $instance = new $related();
-
-        $otherKey = $otherKey ?: $instance->getForeignKey();
-
-        // If no table name was provided, we can guess it by concatenating the two
-        // models using underscores in alphabetical order. The two model names
-        // are transformed to snake case from their default CamelCase also.
-        if (is_null($table)) {
-            $table = $this->joiningTable($related);
-        }
-
-        // Now we're ready to create a new query builder for the related model and
-        // the relationship instances for the relation. The relations will set
-        // appropriate query constraint and entirely manages the hydrations.
-        $query = $instance->newQuery();
-
-        return new BelongsToMany($query, $this, $table, $foreignKey, $otherKey, $relation);
-    }
+    // /**
+    //  * Instantiate a new BelongsToMany relationship.
+    //  *
+    //  * @param  \Illuminate\Database\Eloquent\Builder  $query
+    //  * @param  \Illuminate\Database\Eloquent\Model  $parent
+    //  * @param  string  $table
+    //  * @param  string  $foreignPivotKey
+    //  * @param  string  $relatedPivotKey
+    //  * @param  string  $parentKey
+    //  * @param  string  $relatedKey
+    //  * @param  string  $relationName
+    //  * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    //  */
+    // protected function newBelongsToMany(Builder $query, Model $parent, $table, $foreignPivotKey, $relatedPivotKey,
+    //                                     $parentKey, $relatedKey, $relationName = null)
+    // {
+    //     return new BelongsToMany($query, $parent, $table, $foreignPivotKey, $relatedPivotKey, $parentKey, $relatedKey, $relationName);
+    // }
 }

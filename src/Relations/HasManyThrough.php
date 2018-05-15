@@ -26,10 +26,16 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough as BaseHasManyThrough;
 
 class HasManyThrough extends BaseHasManyThrough
 {
-    protected function setJoin(EloquentBuilder $query = null)
+    /**
+     * Set the join clause on the query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|null  $query
+     * @return void
+     */
+    protected function performJoin(Builder $query = null)
     {
         $query = $query ?: $this->query;
 
-        return parent::setJoin($query instanceof EloquentBuilder ? $query->getQuery() : $query);
+        parent::performJoin($query instanceof EloquentBuilder ? $query->getQuery() : $query);
     }
 }

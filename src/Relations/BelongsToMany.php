@@ -26,10 +26,16 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany as BaseBelongsToMany;
 
 class BelongsToMany extends BaseBelongsToMany
 {
-    protected function setJoin($query = null)
+    /**
+     * Set the join clause for the relation query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|null  $query
+     * @return $this
+     */
+    protected function performJoin($query = null)
     {
         $query = $query ?: $this->query;
 
-        return parent::setJoin($query instanceof EloquentBuilder ? $query->getQuery() : $query);
+        return parent::performJoin($query instanceof EloquentBuilder ? $query->getQuery() : $query);
     }
 }
