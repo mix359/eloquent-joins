@@ -93,7 +93,7 @@ class Builder extends BaseBuilder
                 $relation->getRelated()->getTable(),
                 $this->model->getTable().'.'.$relation->getForeignKey(),
                 '=',
-                $relation->getRelated()->getTable().'.'.$relation->getOtherKey(),
+                $relation->getRelated()->getTable().'.'.$relation->getOwnerKey(),
                 $type,
                 $where
             );
@@ -111,7 +111,7 @@ class Builder extends BaseBuilder
                 $relation->getRelated()->getTable(),
                 $relation->getRelated()->getTable().'.'.$relation->getRelated()->getKeyName(),
                 '=',
-                $relation->getOtherKey(),
+                $relation->getOwnerKey(),
                 $type,
                 $where
             );
