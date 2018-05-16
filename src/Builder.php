@@ -79,10 +79,11 @@ class Builder extends BaseBuilder
 	 * @param string $relation
 	 * @param string $type
 	 * @param bool   $where
+     * @param bool $renameTableAsRelation
 	 *
 	 * @return $this
 	 */
-	public function join($relationName, $type = 'inner', $where = false, $renameTableAsRelation = true)
+	public function joinRelation($relationName, $type = 'inner', $where = false, $renameTableAsRelation = true)
 	{
 		$this->joined[] = $relationName;
 
