@@ -24,7 +24,13 @@ namespace EloquentJoins;
 use Illuminate\Database\Eloquent\Builder as BaseBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 
 class Builder extends BaseBuilder
 {
@@ -34,6 +40,8 @@ class Builder extends BaseBuilder
 	 * @var array
 	 */
 	protected $joined = [];
+
+	protected $relationNameToTable = [];
 
 	/**
 	 * Get the hydrated models without eager loading.
@@ -49,99 +57,166 @@ class Builder extends BaseBuilder
 		$connection = $this->model->getConnectionName();
 
 		// Check for joined relations
-		if (!empty($this->joined)) {
-			foreach ($results as $key => $result) {
-				$relation_values = [];
+		if (empty($this->joined)) {
+			return $this->model->hydrate($results, $connection)->all();
+		}
 
-				foreach ($result as $column => $value) {
-					Arr::set($relation_values, $column, $value);
+		$models = [];
+		foreach ($results as $key => $result) {
+			if(!isset($result->{$this->model->getKeyName()})) {
+				continue;
+			}
+
+			if(!isset($models[$result->{$this->model->getKeyName()}])) {
+				$newModel = true;
+				$modelValues = [];
+			} else {
+				$currentModel = &$models[$result->{$this->model->getKeyName()}];
+				$newModel = false;
+			}
+
+			$relationValues = [];
+			foreach ($result as $column => $value) {
+				if(strpos($column, ".") !== false) {
+					Arr::set($relationValues, $column, $value);
+				} elseif($newModel) {
+					$modelValues[$column] = $value;
 				}
+			}
 
-				foreach ($this->joined as $relationName) {
-					$relation = $this->getRelation($relationName);
+			if($newModel) {
+				$models[$result->{$this->model->getKeyName()}] = $currentModel = $this->model->newFromBuilder($modelValues);
+				unset($modelValues);
+			}
 
-					$relation_values[$relationName] = $relation->getRelated()->newFromBuilder(
-						Arr::pull($relation_values, $relationName),
-						$connection
-					);
+			unset($newModel);
+
+			foreach ($this->joined as $fullRelationName => $relationPath) {
+				$modelForCurrentPath = $currentModel;
+				foreach ($relationPath as $i => $currentRelationName) {
+					$currentRelationPath = implode(array_slice($relationPath, 0, $i + 1), ".");
+					if(!$modelForCurrentPath->relationLoaded($currentRelationName)) {
+						$relation = $modelForCurrentPath->newQuery()->getRelation($currentRelationName);
+						$newRelationModel = $relation->getRelated()->newFromBuilder(Arr::pull($relationValues, $currentRelationPath), $connection);
+						if($relation instanceof BelongsToMany || $relation instanceof HasOneOrMany || $relation instanceof HasManyThrough ) {
+							$modelForCurrentPath->setRelation($currentRelationName, $relation->getRelated()->newCollection($newRelationModel));
+						} else {
+							$modelForCurrentPath->setRelation($currentRelationName, $newRelationModel);
+						}
+						$modelForCurrentPath = $newRelationModel;
+					} elseif ($modelForCurrentPath->getRelation($currentRelationName) instanceof Collection) {
+						$relation = $modelForCurrentPath->newQuery()->getRelation($currentRelationName);
+						$relationModelKey = Arr::pull($relationValues, $currentRelationPath.".".$relation->getRelated()->getKeyName());
+						if(!$modelForCurrentPath->getRelation($currentRelationName)->contains($relationModelKey)) {
+							$newRelationModel = $relation->getRelated()->newFromBuilder(Arr::pull($relationValues, $currentRelationPath), $connection);
+							$modelForCurrentPath->setRelation($currentRelationName)->add($newRelationModel);
+							$modelForCurrentPath = $newRelationModel;
+						} else {
+							$modelForCurrentPath = $modelForCurrentPath->getRelation($currentRelationName)->get($relationModelKey);
+						}
+
+					} else {
+						$modelForCurrentPath = $modelForCurrentPath->getRelation($currentRelationName);
+					}
 				}
-
-				$results[$key] = $relation_values;
 			}
 		}
 
-		return $this->model->hydrate($results, $connection)->all();
+		return array_values($models);
 	}
 
 	/**
 	 * Add a join clause to the query.
 	 *
-	 * @param string $relation
+	 * @param string $fullRelationName
 	 * @param string $type
 	 * @param bool   $where
-     * @param bool $renameTableAsRelation
+	 * @param bool $renameTableAsRelation
 	 *
 	 * @return $this
 	 */
-	public function joinRelation($relationName, $type = 'inner', $where = false, $renameTableAsRelation = true)
+	public function joinRelationship($fullRelationName, $type = 'inner', $where = false, $renameTableAsRelation = true)
 	{
-		$this->joined[] = $relationName;
-
-		$relation = $this->getRelation($relationName);
-		$relatedTableName = $relatedTableNameAs = $relation->getRelated()->getTable();
-		if($renameTableAsRelation && $relatedTableName != $relationName) {
-			$relatedTableNameAs .= " as ".$relationName;
-			$relatedTableName = $relationName;
+		$relationsName = explode(".", $fullRelationName);
+		$relationsCount = count($relationsName);
+		if($relationsCount < 1) {
+			return $this;
 		}
 
-		if ($relation instanceof BelongsTo) {
-			$this->query->join(
-				$relatedTableNameAs,
-				$this->model->getTable().'.'.$relation->getForeignKey(),
-				'=',
-				$relatedTableName.'.'.$relation->getOwnerKey(),
-				$type,
-				$where
-			);
-		} elseif ($relation instanceof BelongsToMany) {
-			$this->query->join(
-				$relation->getTable(),
-				$relation->getQualifiedParentKeyName(),
-				'=',
-				$relation->getForeignKey(),
-				$type,
-				$where
-			);
+		$relatedQueryBuilder = $this;
+		for($i=0; $i < $relationsCount; $i++) {
+			$relationPath = array_slice($relationsName, 0, $i + 1);
+			$relationName = implode(".", $relationPath);
+			$currentRelationName = $relationsName[$i];
 
-			$this->query->join(
-				$relatedTableNameAs,
-				$relatedTableName.'.'.$relation->getRelated()->getKeyName(),
-				'=',
-				$relation->getOwnerKey(),
-				$type,
-				$where
-			);
-		} else {
-			$this->query->join(
-				$relatedTableNameAs,
-				$relation->getQualifiedParentKeyName(),
-				'=',
-				$relation->getForeignKey(),
-				$type,
-				$where
-			);
+			if(isset($this->joined[$relationName])) {
+				continue;
+			}
+
+			$relation = $relatedQueryBuilder->getRelation($currentRelationName);
+			$relatedTableName = $this->relationNameToTable[$fullRelationName] = $relation->getRelated()->getTable();
+//			if($renameTableAsRelation && $relatedTableName != $relationName) {
+//				$relatedTableNameAs .= " as ".$relationName;
+//				$relatedTableName = $relationName;
+//			}
+
+			if ($relation instanceof BelongsTo) {
+				$this->query->join(
+					$relatedTableName,
+					$relatedQueryBuilder->model->getTable().'.'.$relation->getForeignKey(),
+					'=',
+					$relatedTableName.'.'.$relation->getOwnerKey(),
+					$type,
+					$where
+				);
+			} elseif ($relation instanceof BelongsToMany) {
+				$this->query->join(
+					$relation->getTable(),
+					$relation->getQualifiedParentKeyName(),
+					'=',
+					$relation->getForeignKey(),
+					$type,
+					$where
+				);
+
+				$this->query->join(
+					$relatedTableName,
+					$relatedTableName.'.'.$relation->getRelated()->getKeyName(),
+					'=',
+					$relation->getOwnerKey(),
+					$type,
+					$where
+				);
+			} else {
+				$this->query->join(
+					$relatedTableName,
+					$relation->getQualifiedParentKeyName(),
+					'=',
+					$relation->getForeignKey(),
+					$type,
+					$where
+				);
+			}
+
+			if($i != $relationsCount) {
+				$relatedQueryBuilder = $relation->getRelated()->newQuery();
+			}
+
+			$this->joined[$relationName] = $relationPath;
 		}
 
-		$relation_columns = $this->query
-			->getConnection()
-			->getSchemaBuilder()
-			->getColumnListing($relation->getRelated()->getTable());
+		if($relation instanceof Relation && $relation !== $this) {
+			$relation_columns = $this->query
+				->getConnection()
+				->getSchemaBuilder()
+				->getColumnListing($relation->getRelated()->getTable());
 
-		array_walk($relation_columns, function (&$column) use ($relatedTableName, $relationName) {
-			$column = $relatedTableName.'.'.$column.($relatedTableName != $relationName ? ' as '.$relationName.'.'.$column : '');
-		});
+			array_walk($relation_columns, function (&$column) use ($relatedTableName, $relationName) {
+				$column = $relatedTableName.'.'.$column.($relatedTableName != $relationName ? ' as '.$relationName.'.'.$column : '');
+			});
 
-		$this->query->addSelect(array_merge([$this->model->getTable().'.*'], $relation_columns));
+			$this->query->addSelect(array_merge([$this->model->getTable().'.*'], $relation_columns));
+		}
 
 		return $this;
 	}
@@ -154,9 +229,9 @@ class Builder extends BaseBuilder
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function joinWhere($relation, $type = 'inner')
+	public function joinRelationshipWhere($relation, $type = 'inner')
 	{
-		return $this->join($relation, $type, true);
+		return $this->joinRelationship($relation, $type, true);
 	}
 
 	/**
@@ -166,9 +241,9 @@ class Builder extends BaseBuilder
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function leftJoin($relation)
+	public function leftJoinRelationship($relation)
 	{
-		return $this->join($relation, 'left');
+		return $this->joinRelationship($relation, 'left');
 	}
 
 	/**
@@ -178,9 +253,9 @@ class Builder extends BaseBuilder
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function leftJoinWhere($relation)
+	public function leftJoinRelationshipWhere($relation)
 	{
-		return $this->joinWhere($relation, 'left');
+		return $this->joinRelationshipWhere($relation, 'left');
 	}
 
 	/**
@@ -190,9 +265,9 @@ class Builder extends BaseBuilder
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function rightJoin($relation)
+	public function rightRelationshipJoin($relation)
 	{
-		return $this->join($relation, 'right');
+		return $this->joinRelationship($relation, 'right');
 	}
 
 	/**
@@ -202,8 +277,12 @@ class Builder extends BaseBuilder
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
 	 */
-	public function rightJoinWhere($relation)
+	public function rightJoinRelationshipWhere($relation)
 	{
-		return $this->joinWhere($relation, 'right');
+		return $this->joinRelationshipWhere($relation, 'right');
+	}
+
+	public function getTableFromRelationName($relationName) {
+		return $this->relationNameToTable[$relationName] ?? null;
 	}
 }
