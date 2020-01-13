@@ -94,7 +94,7 @@ class Builder extends BaseBuilder
 			foreach ($this->joined as $fullRelationName => $relationPath) {
 				$modelForCurrentPath = $currentModel;
 				foreach ($relationPath as $i => $currentRelationName) {
-					$currentRelationPath = implode(array_slice($relationPath, 0, $i + 1), ".");
+					$currentRelationPath = implode(".", array_slice($relationPath, 0, $i + 1));
 					if(!$modelForCurrentPath->relationLoaded($currentRelationName)) {
 						$relation = $modelForCurrentPath->newQuery()->getRelation($currentRelationName);
 						$newRelationModel = $relation->getRelated()->newFromBuilder(Arr::pull($relationValues, $currentRelationPath), $connection);
@@ -163,9 +163,9 @@ class Builder extends BaseBuilder
 			if ($relation instanceof BelongsTo) {
 				$this->query->join(
 					$relatedTableName,
-					$relatedQueryBuilder->model->getTable().'.'.$relation->getForeignKey(),
+					$relatedQueryBuilder->model->getTable().'.'.$relation->getForeignKeyName(),
 					'=',
-					$relatedTableName.'.'.$relation->getOwnerKey(),
+					$relatedTableName.'.'.$relation->getOwnerKeyName(),
 					$type,
 					$where
 				);
