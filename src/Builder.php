@@ -99,7 +99,7 @@ class Builder extends BaseBuilder
 						$relation = $modelForCurrentPath->newQuery()->getRelation($currentRelationName);
 						$newRelationModel = $relation->getRelated()->newFromBuilder(Arr::pull($relationValues, $currentRelationPath), $connection);
 						if($relation instanceof BelongsToMany || $relation instanceof HasOneOrMany || $relation instanceof HasManyThrough ) {
-							$modelForCurrentPath->setRelation($currentRelationName, $relation->getRelated()->newCollection($newRelationModel));
+							$modelForCurrentPath->setRelation($currentRelationName, $relation->getRelated()->newCollection([$newRelationModel]));
 						} else {
 							$modelForCurrentPath->setRelation($currentRelationName, $newRelationModel);
 						}
@@ -109,7 +109,7 @@ class Builder extends BaseBuilder
 						$relationModelKey = Arr::pull($relationValues, $currentRelationPath.".".$relation->getRelated()->getKeyName());
 						if(!$modelForCurrentPath->getRelation($currentRelationName)->contains($relationModelKey)) {
 							$newRelationModel = $relation->getRelated()->newFromBuilder(Arr::pull($relationValues, $currentRelationPath), $connection);
-							$modelForCurrentPath->setRelation($currentRelationName)->add($newRelationModel);
+							$modelForCurrentPath->getRelation($currentRelationName)->add($newRelationModel);
 							$modelForCurrentPath = $newRelationModel;
 						} else {
 							$modelForCurrentPath = $modelForCurrentPath->getRelation($currentRelationName)->get($relationModelKey);
@@ -154,7 +154,11 @@ class Builder extends BaseBuilder
 			}
 
 			$relation = $relatedQueryBuilder->getRelation($currentRelationName);
-			$relatedTableName = $this->relationNameToTable[$fullRelationName] = $relation->getRelated()->getTable();
+            if($relation->getParent()->getConnection() !== $relation->getRelated()->getConnection()) {
+                return $this;
+            }
+
+			$relatedTableName = $this->relationNameToTable[$relationName] = $relation->getRelated()->getTable();
 //			if($renameTableAsRelation && $relatedTableName != $relationName) {
 //				$relatedTableNameAs .= " as ".$relationName;
 //				$relatedTableName = $relationName;
@@ -174,7 +178,7 @@ class Builder extends BaseBuilder
 					$relation->getTable(),
 					$relation->getQualifiedParentKeyName(),
 					'=',
-					$relation->getForeignKey(),
+					$relation->getForeignKeyName(),
 					$type,
 					$where
 				);
@@ -192,7 +196,7 @@ class Builder extends BaseBuilder
 					$relatedTableName,
 					$relation->getQualifiedParentKeyName(),
 					'=',
-					$relation->getForeignKey(),
+					$relation->getQualifiedForeignKeyName(),
 					$type,
 					$where
 				);
@@ -205,7 +209,7 @@ class Builder extends BaseBuilder
 			$this->joined[$relationName] = $relationPath;
 		}
 
-		if($relation instanceof Relation && $relation !== $this) {
+		if(isset($relation) && $relation instanceof Relation && $relation !== $this) {
 			$relation_columns = $this->query
 				->getConnection()
 				->getSchemaBuilder()
