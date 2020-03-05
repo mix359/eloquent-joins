@@ -23,55 +23,76 @@ namespace EloquentJoins;
 
 use EloquentJoins\Relations\BelongsToMany;
 use EloquentJoins\Relations\HasManyThrough;
+use EloquentJoins\Relations\HasOneThrough;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Model;
 
 trait ModelTrait
 {
-    /**
-     * Create a new Eloquent query builder for the model.
-     *
-     * @param \Illuminate\Database\Query\Builder $query
-     *
-     * @return \Illuminate\Database\Eloquent\Builder|static
-     */
-    public function newEloquentBuilder($query)
-    {
-        return new Builder($query);
-    }
+	/**
+	 * Create a new Eloquent query builder for the model.
+	 *
+	 * @param \Illuminate\Database\Query\Builder $query
+	 *
+	 * @return EloquentBuilder|static
+	 */
+	public function newEloquentBuilder($query)
+	{
+		return new Builder($query);
+	}
 
-    // IS NEEDED?? REMOVE?
-    // /**
-    //  * Instantiate a new HasManyThrough relationship.
-    //  *
-    //  * @param  \Illuminate\Database\Eloquent\Builder  $query
-    //  * @param  \Illuminate\Database\Eloquent\Model  $farParent
-    //  * @param  \Illuminate\Database\Eloquent\Model  $throughParent
-    //  * @param  string  $firstKey
-    //  * @param  string  $secondKey
-    //  * @param  string  $localKey
-    //  * @param  string  $secondLocalKey
-    //  * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
-    //  */
-    // protected function newHasManyThrough(Builder $query, Model $farParent, Model $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
-    // {
-    //     return new HasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
-    // }
 
-    // /**
-    //  * Instantiate a new BelongsToMany relationship.
-    //  *
-    //  * @param  \Illuminate\Database\Eloquent\Builder  $query
-    //  * @param  \Illuminate\Database\Eloquent\Model  $parent
-    //  * @param  string  $table
-    //  * @param  string  $foreignPivotKey
-    //  * @param  string  $relatedPivotKey
-    //  * @param  string  $parentKey
-    //  * @param  string  $relatedKey
-    //  * @param  string  $relationName
-    //  * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
-    //  */
-    // protected function newBelongsToMany(Builder $query, Model $parent, $table, $foreignPivotKey, $relatedPivotKey,
-    //                                     $parentKey, $relatedKey, $relationName = null)
-    // {
-    //     return new BelongsToMany($query, $parent, $table, $foreignPivotKey, $relatedPivotKey, $parentKey, $relatedKey, $relationName);
-    // }
+	/**
+	 * Instantiate a new HasManyThrough relationship.
+	 *
+	 * @param  EloquentBuilder  $query
+	 * @param  Model  $farParent
+	 * @param  Model  $throughParent
+	 * @param  string  $firstKey
+	 * @param  string  $secondKey
+	 * @param  string  $localKey
+	 * @param  string  $secondLocalKey
+	 * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
+	 */
+	protected function newHasManyThrough(EloquentBuilder $query, Model $farParent, Model $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
+	{
+		return new HasManyThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+	}
+
+	/**
+	 * Instantiate a new HasOneThrough relationship.
+	 *
+	 * @param  EloquentBuilder  $query
+	 * @param  Model  $farParent
+	 * @param  Model  $throughParent
+	 * @param  string  $firstKey
+	 * @param  string  $secondKey
+	 * @param  string  $localKey
+	 * @param  string  $secondLocalKey
+	 * @return \Illuminate\Database\Eloquent\Relations\HasOneThrough
+	 */
+	protected function newHasOneThrough(EloquentBuilder $query, Model $farParent, Model $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey)
+	{
+		return new HasOneThrough($query, $farParent, $throughParent, $firstKey, $secondKey, $localKey, $secondLocalKey);
+	}
+
+	//IS NEEDED?? REMOVE?
+	// /**
+	//  * Instantiate a new BelongsToMany relationship.
+	//  *
+	//  * @param  \Illuminate\Database\Eloquent\Builder  $query
+	//  * @param  \Illuminate\Database\Eloquent\Model  $parent
+	//  * @param  string  $table
+	//  * @param  string  $foreignPivotKey
+	//  * @param  string  $relatedPivotKey
+	//  * @param  string  $parentKey
+	//  * @param  string  $relatedKey
+	//  * @param  string  $relationName
+	//  * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+	//  */
+	// protected function newBelongsToMany(Builder $query, Model $parent, $table, $foreignPivotKey, $relatedPivotKey,
+	//                                     $parentKey, $relatedKey, $relationName = null)
+	// {
+	//     return new BelongsToMany($query, $parent, $table, $foreignPivotKey, $relatedPivotKey, $parentKey, $relatedKey, $relationName);
+	// }
 }

@@ -21,21 +21,15 @@ along with Eloquent Joins.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace EloquentJoins\Relations;
 
-use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough as BaseHasManyThrough;
+use \Illuminate\Database\Eloquent\Model;
 
 class HasManyThrough extends BaseHasManyThrough
 {
-    /**
-     * Set the join clause on the query.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder|null  $query
-     * @return void
-     */
-    protected function performJoin(Builder $query = null)
-    {
-        $query = $query ?: $this->query;
-
-        parent::performJoin($query instanceof EloquentBuilder ? $query->getQuery() : $query);
-    }
+	/**
+	 * @return Model
+	 */
+	public function getThroughParent(): Model {
+		return $this->throughParent;
+	}
 }

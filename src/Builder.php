@@ -21,11 +21,12 @@ along with Eloquent Joins.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace EloquentJoins;
 
+use EloquentJoins\Relations\HasManyThrough;
+use EloquentJoins\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Builder as BaseBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -190,6 +191,22 @@ class Builder extends BaseBuilder
 					$relation->getOwnerKey(),
 					$type,
 					$where
+				);
+			} elseif($relation instanceof HasManyThrough || $relation instanceof HasOneThrough) {
+				$this->query->join(
+					$relation->getThroughParent()->getTable(),
+					$relation->getQualifiedFirstKeyName(),
+					'=',
+					$relation->getQualifiedLocalKeyName(),
+					$type,
+					$where
+				);
+
+				$this->query->join(
+					$relatedTableName,
+					$relation->getQualifiedParentKeyName(),
+					'=',
+					$relation->getQualifiedFarKeyName()
 				);
 			} else {
 				$this->query->join(
