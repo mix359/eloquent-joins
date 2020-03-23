@@ -38,7 +38,11 @@ trait ModelTrait
 	 */
 	public function newEloquentBuilder($query)
 	{
-		return new Builder($query);
+		$builder = new Builder($query);
+		if(isset($this->canUseRelationCallback)) {
+			$builder->setCanUseRelationCallback($this->canUseRelationCallback);
+		}
+		return $builder;
 	}
 
 

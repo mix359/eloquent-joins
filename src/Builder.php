@@ -21,14 +21,14 @@ along with Eloquent Joins.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace EloquentJoins;
 
+use App\Helper\AuthHelper;
 use EloquentJoins\Relations\HasManyThrough;
 use EloquentJoins\Relations\HasOneThrough;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder as BaseBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
-use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -42,7 +42,15 @@ class Builder extends BaseBuilder
 	 */
 	protected $joined = [];
 
+	/**
+	 * @var array
+	 */
 	protected $relationNameToTable = [];
+
+	/**
+	 * @var callable
+	 */
+	protected $canUseRelationCallback;
 
 	/**
 	 * Get the hydrated models without eager loading.
@@ -131,10 +139,11 @@ class Builder extends BaseBuilder
 	 *
 	 * @param string $fullRelationName
 	 * @param string $type
-	 * @param bool   $where
+	 * @param bool $where
 	 * @param bool $renameTableAsRelation
 	 *
 	 * @return $this
+	 * @throws AuthorizationException
 	 */
 	public function joinRelationship($fullRelationName, $type = 'inner', $where = false, $renameTableAsRelation = true)
 	{
@@ -159,11 +168,11 @@ class Builder extends BaseBuilder
                 return $this;
             }
 
+			if(is_callable($this->canUseRelationCallback) && !call_user_func($this->canUseRelationCallback, $relatedQueryBuilder->getModel(), $currentRelationName)) {
+				throw new AuthorizationException("You're not authorized to join relation '{$relationName}'");
+			}
+
 			$relatedTableName = $this->relationNameToTable[$relationName] = $relation->getRelated()->getTable();
-//			if($renameTableAsRelation && $relatedTableName != $relationName) {
-//				$relatedTableNameAs .= " as ".$relationName;
-//				$relatedTableName = $relationName;
-//			}
 
 			if ($relation instanceof BelongsTo) {
 				$this->query->join(
@@ -249,6 +258,7 @@ class Builder extends BaseBuilder
 	 * @param string $type
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
+	 * @throws AuthorizationException
 	 */
 	public function joinRelationshipWhere($relation, $type = 'inner')
 	{
@@ -261,6 +271,7 @@ class Builder extends BaseBuilder
 	 * @param string $relation
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
+	 * @throws AuthorizationException
 	 */
 	public function leftJoinRelationship($relation)
 	{
@@ -285,6 +296,7 @@ class Builder extends BaseBuilder
 	 * @param string $relation
 	 *
 	 * @return \Illuminate\Database\Eloquent\Builder|static
+	 * @throws AuthorizationException
 	 */
 	public function rightRelationshipJoin($relation)
 	{
@@ -305,5 +317,22 @@ class Builder extends BaseBuilder
 
 	public function getTableFromRelationName($relationName) {
 		return $this->relationNameToTable[$relationName] ?? null;
+	}
+
+	/**
+	 * @return callable
+	 */
+	public function getCanUseRelationCallback(): callable {
+		return $this->canUseRelationCallback;
+	}
+
+	/**
+	 * @param callable $canUseRelationCallback
+	 * @return Builder
+	 */
+	public function setCanUseRelationCallback(callable $canUseRelationCallback): Builder {
+		$this->canUseRelationCallback = $canUseRelationCallback;
+
+		return $this;
 	}
 }
