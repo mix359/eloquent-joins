@@ -335,4 +335,18 @@ class Builder extends BaseBuilder
 
 		return $this;
 	}
+
+	/**
+	 * @return array
+	 */
+	public function getJoined(): array {
+		return $this->joined;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getRelationNameToTable(): array {
+		return $this->relationNameToTable;
+	}
 }
