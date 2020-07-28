@@ -177,9 +177,9 @@ class Builder extends BaseBuilder
 			if ($relation instanceof BelongsTo) {
 				$this->query->join(
 					$relatedTableName,
-					$relatedQueryBuilder->model->getTable().'.'.$relation->getForeignKeyName(),
+					$relation->getQualifiedForeignKeyName(),
 					'=',
-					$relatedTableName.'.'.$relation->getOwnerKeyName(),
+					$relation->getQualifiedOwnerKeyName(),
 					$type,
 					$where
 				);
@@ -188,16 +188,16 @@ class Builder extends BaseBuilder
 					$relation->getTable(),
 					$relation->getQualifiedParentKeyName(),
 					'=',
-					$relation->getForeignKeyName(),
+					$relation->getQualifiedForeignPivotKeyName(),
 					$type,
 					$where
 				);
 
 				$this->query->join(
 					$relatedTableName,
-					$relatedTableName.'.'.$relation->getRelated()->getKeyName(),
+					$relation->getRelated()->getQualifiedKeyName(),
 					'=',
-					$relation->getOwnerKey(),
+					$relation->getQualifiedRelatedPivotKeyName(),
 					$type,
 					$where
 				);
@@ -235,7 +235,16 @@ class Builder extends BaseBuilder
 			$this->joined[$relationName] = $relationPath;
 		}
 
-		if(isset($relation) && $relation instanceof Relation && $relation !== $this) {
+		if(empty($this->query->columns)) {
+			$this->query->select($this->model->getTable().'.*');
+		} else {
+			foreach ($this->query->columns as &$column) {
+				if(is_string($column) && strpos($column, ".") === false) {
+					$column = $this->model->getTable().'.'.$column;
+				}
+			}
+		}
+		if($renameTableAsRelation && isset($relation) && $relation instanceof Relation && $relation !== $this) {
 			$relation_columns = $this->query
 				->getConnection()
 				->getSchemaBuilder()
@@ -245,7 +254,7 @@ class Builder extends BaseBuilder
 				$column = $relatedTableName.'.'.$column.($relatedTableName != $relationName ? ' as '.$relationName.'.'.$column : '');
 			});
 
-			$this->query->addSelect(array_merge([$this->model->getTable().'.*'], $relation_columns));
+			$this->query->addSelect($relation_columns);
 		}
 
 		return $this;
