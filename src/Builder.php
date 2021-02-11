@@ -159,14 +159,17 @@ class Builder extends BaseBuilder
 			$relationName = implode(".", $relationPath);
 			$currentRelationName = $relationsName[$i];
 
-			if(isset($this->joined[$relationName])) {
-				continue;
-			}
-
 			$relation = $relatedQueryBuilder->getRelation($currentRelationName);
             if($relation->getParent()->getConnection() !== $relation->getRelated()->getConnection()) {
                 return $this;
             }
+
+			if(isset($this->joined[$relationName])) {
+				if($i != $relationsCount) {
+					$relatedQueryBuilder = $relation->getRelated()->newQuery();
+				}
+				continue;
+			}
 
 			if(is_callable($this->canUseRelationCallback) && !call_user_func($this->canUseRelationCallback, $relatedQueryBuilder->getModel(), $currentRelationName)) {
 				throw new AuthorizationException("You're not authorized to join relation '{$relationName}'");
