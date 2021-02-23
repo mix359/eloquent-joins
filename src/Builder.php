@@ -168,6 +168,7 @@ class Builder extends BaseBuilder
 				if($i != $relationsCount) {
 					$relatedQueryBuilder = $relation->getRelated()->newQuery();
 				}
+				$relatedTableName = $this->relationNameToTable[$relationName];
 				continue;
 			}
 
@@ -247,7 +248,7 @@ class Builder extends BaseBuilder
 				}
 			}
 		}
-		if($renameTableAsRelation && isset($relation) && $relation instanceof Relation && $relation !== $this) {
+		if($renameTableAsRelation && isset($relation) && $relation instanceof Relation && $relation !== $this  && isset($relatedTableName) && isset($relationName)) {
 			$relation_columns = $this->query
 				->getConnection()
 				->getSchemaBuilder()
